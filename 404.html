@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirecting...</title>
+    <script>
+        // Перенаправляем все запросы на index.html
+        const path = window.location.pathname;
+        const search = window.location.search;
+        const hash = window.location.hash;
+        
+        // Если это запрос к /auth, оставляем как есть
+        // Иначе перенаправляем на главную
+        if (path === '/' || path === '/index.html' || !path.includes('/auth')) {
+            window.location.href = '/';
+        }
+    </script>
+</head>
+<body>
+    <p>Перенаправление...</p>
+</body>
+</html>
