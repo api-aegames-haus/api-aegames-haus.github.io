@@ -5,81 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API Auth Service</title>
     <script>
-        // Проверяем, если это запрос к API
-        const path = window.location.pathname;
-        const params = new URLSearchParams(window.location.search);
-        
-        if (path.endsWith('/auth') || path.endsWith('/auth/')) {
-            // Это API запрос - обрабатываем авторизацию
-            handleAuthRequest();
-        } else {
-            // Это главная страница - показываем сообщение
-            document.addEventListener('DOMContentLoaded', () => {
-                document.body.innerHTML = `
-                    <h1>Этот домен служит API сервису авторизации</h1>
-                    <p>Доступ только для разработчиков.</p>
-                `;
-            });
-        }
-        
-        async function handleAuthRequest() {
-            const nickname = params.get('nickname');
-            const password = params.get('password');
-            
-            // Устанавливаем plain text content type
-            document.contentType = 'text/plain';
-            
+        // Эта функция проверяет аккаунт
+        async function checkAuth(nickname, password) {
             try {
-                // Проверяем наличие параметров
                 if (!nickname || !password) {
-                    document.body.textContent = '{auth=error,e=incorrectnicknameorpassword}';
-                    return;
+                    return '{auth=error,e=incorrectnicknameorpassword}';
                 }
-                
-                // Загружаем файл с аккаунтами
+
                 const response = await fetch('accounts.txt');
-                
                 if (!response.ok) {
-                    document.body.textContent = '{auth=error,e=404}';
-                    return;
+                    return '{auth=error,e=404}';
                 }
-                
+
                 const text = await response.text();
                 const lines = text.split('\n');
-                
-                // Ищем совпадение
-                let found = false;
+
                 for (const line of lines) {
                     const trimmedLine = line.trim();
                     if (!trimmedLine) continue;
-                    
                     const parts = trimmedLine.split(':');
                     if (parts.length >= 2) {
-                        const storedNickname = parts[0].trim();
-                        const storedPassword = parts[1].trim();
-                        
-                        if (storedNickname === nickname && storedPassword === password) {
-                            found = true;
-                            break;
+                        const storedNick = parts[0].trim();
+                        const storedPass = parts[1].trim();
+                        if (storedNick === nickname && storedPass === password) {
+                            return `{auth=success,nickname="${nickname}",password="${password}"}`;
                         }
                     }
                 }
-                
-                // Возвращаем результат
-                if (found) {
-                    document.body.textContent = `{auth=success,nickname="${nickname}",password="${password}"}`;
-                } else {
-                    document.body.textContent = '{auth=error,e=incorrectnicknameorpassword}';
-                }
-                
+                return '{auth=error,e=incorrectnicknameorpassword}';
+
             } catch (error) {
-                document.body.textContent = '{auth=error,e=404}';
+                return '{auth=error,e=404}';
             }
         }
+
+        // ОСНОВНАЯ ЛОГИКА СТРАНИЦЫ
+        async function init() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isApiCall = urlParams.has('nickname') && urlParams.has('password');
+
+            if (isApiCall) {
+                // ЕСЛИ ЭТО API-ЗАПРОС: выполняем проверку и ВЫВОДИМ ТОЛЬКО РЕЗУЛЬТАТ
+                const nickname = urlParams.get('nickname');
+                const password = urlParams.get('password');
+                const result = await checkAuth(nickname, password);
+                document.body.textContent = result; // Только plain-text ответ
+                // Меняем заголовок для "чистоты"
+                document.title = 'API Response';
+                // Можно также сменить content-type через meta (эмулируем plain text)
+                document.querySelector('meta[http-equiv="Content-Type"]')?.setAttribute('content', 'text/plain');
+            } else {
+                // ЕСЛИ ЭТО ГЛАВНАЯ СТРАНИЦА: показываем обычный интерфейс
+                document.body.innerHTML = `
+                    <h1>Этот домен служит API сервису авторизации</h1>
+                    <p>Доступ только для разработчиков.</p>
+                    <p><strong>Используйте endpoint:</strong><br>
+                    <code>GET ${window.location.origin}/?nickname=USER&amp;password=PASS</code>
+                    </p>
+                    <p style="color: #666; font-size: 0.9em;">
+                    Примечание: из соображений безопасности пароли в accounts.txt открыты и логика на клиенте.<br>
+                    Этот вариант подходит только для тестовых и учебных целей.
+                    </p>
+                `;
+            }
+        }
+        // Запускаем логику при загрузке
+        window.onload = init;
     </script>
 </head>
 <body>
-    <!-- Контент будет заменен JavaScript -->
+    <!-- Контент подставится скриптом -->
     Загрузка...
 </body>
 </html>
