@@ -4,14 +4,43 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API Auth Service</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .api-response {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .hidden {
+            display: none;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
     <script>
-        // Эта функция проверяет аккаунт
+        // Основная функция проверки авторизации
         async function checkAuth(nickname, password) {
             try {
+                // Проверка на пустые параметры
                 if (!nickname || !password) {
                     return '{auth=error,e=incorrectnicknameorpassword}';
                 }
 
+                // Загрузка файла с аккаунтами
                 const response = await fetch('accounts.txt');
                 if (!response.ok) {
                     return '{auth=error,e=404}';
@@ -20,54 +49,89 @@
                 const text = await response.text();
                 const lines = text.split('\n');
 
+                // Поиск совпадения
                 for (const line of lines) {
                     const trimmedLine = line.trim();
                     if (!trimmedLine) continue;
+                    
                     const parts = trimmedLine.split(':');
                     if (parts.length >= 2) {
                         const storedNick = parts[0].trim();
                         const storedPass = parts[1].trim();
+                        
                         if (storedNick === nickname && storedPass === password) {
                             return `{auth=success,nickname="${nickname}",password="${password}"}`;
                         }
                     }
                 }
+                
                 return '{auth=error,e=incorrectnicknameorpassword}';
-
+                
             } catch (error) {
+                console.error('Ошибка:', error);
                 return '{auth=error,e=404}';
             }
         }
 
-        // ОСНОВНАЯ ЛОГИКА СТРАНИЦЫ
-        async function init() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const isApiCall = urlParams.has('nickname') && urlParams.has('password');
+        // Парсинг параметров из хэша
+        function parseHashParams() {
+            const hash = window.location.hash.substring(1); // Убираем #
+            if (!hash) return {};
+            
+            const params = {};
+            hash.split('&').forEach(pair => {
+                const [key, value] = pair.split('=');
+                if (key && value) {
+                    params[decodeURIComponent(key)] = decodeURIComponent(value);
+                }
+            });
+            return params;
+        }
 
-            if (isApiCall) {
-                // ЕСЛИ ЭТО API-ЗАПРОС: выполняем проверку и ВЫВОДИМ ТОЛЬКО РЕЗУЛЬТАТ
-                const nickname = urlParams.get('nickname');
-                const password = urlParams.get('password');
-                const result = await checkAuth(nickname, password);
-                document.body.textContent = result; // Только plain-text ответ
-                // Меняем заголовок для "чистоты"
-                document.title = 'API Response';
-                // Можно также сменить content-type через meta (эмулируем plain text)
-                document.querySelector('meta[http-equiv="Content-Type"]')?.setAttribute('content', 'text/plain');
+        // Основная логика при загрузке страницы
+        async function initPage() {
+            const params = parseHashParams();
+            const hasAuthParams = params.nickname && params.password;
+            
+            if (hasAuthParams) {
+                // Это API-запрос - показываем только результат
+                const result = await checkAuth(params.nickname, params.password);
+                
+                // Прячем основной контент
+                document.getElementById('main-content').classList.add('hidden');
+                
+                // Показываем результат
+                const responseDiv = document.getElementById('api-response');
+                responseDiv.textContent = result;
+                responseDiv.classList.remove('hidden');
+                
+                // Меняем заголовок для чистоты
+                document.title = 'API Auth Response';
+                
             } else {
-                // ЕСЛИ ЭТО ГЛАВНАЯ СТРАНИЦА: показываем обычный интерфейс
-                document.body.innerHTML = `
-                    <h1>Этот домен служит API сервису авторизации</h1>
-                    <p>Доступ только для разработчиков.</p>
-                `;
+                // Это обычный визит на сайт
+                document.getElementById('main-content').classList.remove('hidden');
+                document.getElementById('api-response').classList.add('hidden');
             }
         }
-        // Запускаем логику при загрузке
-        window.onload = init;
+
+        // Запускаем при загрузке страницы
+        window.addEventListener('DOMContentLoaded', initPage);
+        
+        // Также отслеживаем изменения хэша (если кто-то введет новый URL на той же странице)
+        window.addEventListener('hashchange', initPage);
     </script>
 </head>
 <body>
-    <!-- Контент подставится скриптом -->
-    Загрузка...
+    <!-- Блок для API-ответов -->
+    <div id="api-response" class="api-response hidden">
+        <!-- Сюда вставится результат проверки -->
+    </div>
+
+    <!-- Основной контент сайта (виден только без параметров) -->
+    <div id="main-content">
+        <h1>🔐 API Auth Service</h1>
+        <p>Этот домен служит API сервису авторизации. Доступ только для разработчиков.</p>
+    </div>
 </body>
 </html>
