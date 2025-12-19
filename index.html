@@ -4,9 +4,82 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>API Auth Service</title>
+    <script>
+        // Проверяем, если это запрос к API
+        const path = window.location.pathname;
+        const params = new URLSearchParams(window.location.search);
+        
+        if (path.endsWith('/auth') || path.endsWith('/auth/')) {
+            // Это API запрос - обрабатываем авторизацию
+            handleAuthRequest();
+        } else {
+            // Это главная страница - показываем сообщение
+            document.addEventListener('DOMContentLoaded', () => {
+                document.body.innerHTML = `
+                    <h1>Этот домен служит API сервису авторизации</h1>
+                    <p>Доступ только для разработчиков.</p>
+                `;
+            });
+        }
+        
+        async function handleAuthRequest() {
+            const nickname = params.get('nickname');
+            const password = params.get('password');
+            
+            // Устанавливаем plain text content type
+            document.contentType = 'text/plain';
+            
+            try {
+                // Проверяем наличие параметров
+                if (!nickname || !password) {
+                    document.body.textContent = '{auth=error,e=incorrectnicknameorpassword}';
+                    return;
+                }
+                
+                // Загружаем файл с аккаунтами
+                const response = await fetch('accounts.txt');
+                
+                if (!response.ok) {
+                    document.body.textContent = '{auth=error,e=404}';
+                    return;
+                }
+                
+                const text = await response.text();
+                const lines = text.split('\n');
+                
+                // Ищем совпадение
+                let found = false;
+                for (const line of lines) {
+                    const trimmedLine = line.trim();
+                    if (!trimmedLine) continue;
+                    
+                    const parts = trimmedLine.split(':');
+                    if (parts.length >= 2) {
+                        const storedNickname = parts[0].trim();
+                        const storedPassword = parts[1].trim();
+                        
+                        if (storedNickname === nickname && storedPassword === password) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // Возвращаем результат
+                if (found) {
+                    document.body.textContent = `{auth=success,nickname="${nickname}",password="${password}"}`;
+                } else {
+                    document.body.textContent = '{auth=error,e=incorrectnicknameorpassword}';
+                }
+                
+            } catch (error) {
+                document.body.textContent = '{auth=error,e=404}';
+            }
+        }
+    </script>
 </head>
 <body>
-    <h1>Этот домен служит API сервису авторизации</h1>
-    <p>Доступ только для разработчиков.</p>
+    <!-- Контент будет заменен JavaScript -->
+    Загрузка...
 </body>
 </html>
